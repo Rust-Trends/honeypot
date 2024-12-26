@@ -3,5 +3,7 @@ name = "honeypot"
 authors = ["Bob Peters <contact@rust-trends.com>"]
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+license-file =  "LICENSE.txt"
 
 [dependencies]
