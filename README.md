@@ -1,25 +1,24 @@
 # Building a Custom Rust Honeypot and Deploying It on Oracle Cloud for Free
 
-## Introduction
 Looking for a fun and educational hands-on project that combines Rust coding with cloud deployment? In this guide, we will build a simple honeypot—a minimal TCP server in Rust that listens on a specific port and logs every incoming request—then deploy it to an Ubuntu instance on Oracle Cloud Infrastructure (OCI) for FREE. A honeypot offers a fascinating window into the malicious scans and attacks traveling the internet while also providing a playful way to practice coding, cross-compiling, and network configuration. By following these steps, you will gain valuable Rust experience, learn how to set up OCI for external traffic, and come away with deeper insight into real-world attack patterns.
 
-Note 1) you can of course use any cloud provider or your own server for this project. But Oracle Cloud offers an "Always Free" tier that allows you to run a small VM at no cost and I was looking for an excuse to try it out. Initially I was interested in the ARM architecture but those are limited in my region of choice so I am using a AMD64 instance for this project.
-
-Note 2) I am using a Apple M1 Pro machine for development and cross-compiling for x86_64 architecture. 
+- Note 1: I am using a Apple M1 Pro MacBook for development and cross-compiling for x86_64 architecture.
 
 ---
 
-## 1. Prerequisites
+# 1. Prerequisites
 Welcome to the warm-up lap before our Rust honeypot grand adventure! Here’s what you need to get started:
 
-### 1.1 Oracle Cloud Account
+## 1.1 Oracle Cloud Account
 First things first: snag an [Oracle Cloud account](https://www.oracle.com/cloud/free/) (free is our favorite price). The Always Free tier is pretty sweet since it gives you a no-cost VM to play around with. Perfect for deploying a honeypot without emptying your wallet.
 
-### 1.2 Ubuntu VM in OCI
-Go to the Oracle Cloud console and [spin up an Ubuntu instance](https://cloud.oracle.com/compute/instances). Make sure you’ve got your SSH key set up and can **actually get in** — the honeypot is useless if you can’t log onto your own server.
+- Note 1: you can of course use any cloud provider or your own server for this project. But Oracle Cloud offers an "Always Free" tier that allows you to run a small VM at no cost and I was looking for an excuse to try it out. Initially I was interested in the ARM architecture but those are limited in my region of choice so I am using a AMD64 instance for this project.
 
-### 1.3 Rust Installed Locally
-Rust up your local environment with the following:
+## 1.2 Ubuntu VM in OCI
+Go to the Oracle Cloud console and [spin up an Ubuntu instance](https://cloud.oracle.com/compute/instances). Make sure you’ve got your SSH key set up and can **actually get in**. Some additional information on how to use SSH can be found in the [Oracle Cloud documentation](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/accessinginstance.htm).
+
+## 1.3 Rust Installed Locally
+If you do not have Rust installed look here for the [basic setup steps](https://www.rust-lang.org/learn/get-started). To add another architecture Rust up your local environment with the following:
 
 ```bash
 rustup update
@@ -28,8 +27,8 @@ rustup update
 rustup target add x86_64-unknown-linux-gnu
 ```
 
-Personally I am using **stable-aarch64-apple-darwin** on an Apple Silicon Mac for development and cross-compilation. 
-Because I wanted to cross-compile to x86_64 the architecture of AMD64 (a usual suspect for cloud VMs), I installed this handy toolchain:
+Personally I am using **stable-aarch64-apple-darwin** on an Apple Silicon Mac for development and cross-compilation.
+Because I wanted to cross-compile to `x86_64` the architecture of AMD64 (a usual suspect for cloud VMs), I installed this handy toolchain:
 
 ```bash
 brew install messense/macos-cross-toolchains/x86_64-unknown-linux-gnu
@@ -37,15 +36,15 @@ brew install messense/macos-cross-toolchains/x86_64-unknown-linux-gnu
 
 If your setup is different, fear not—just make sure you have some way to compile your Rust code into a binary that your Ubuntu server recognizes.
 
-### 1.4 Basic Terminal / SSH Skills
+## 1.4 Basic Terminal / SSH Skills
 
-Brush up on your command line wizardry and SSH know-how. If you can SSH into your server, open files in your favorite terminal editor you’re set!
+Brush up on your command line wizardry and SSH know-how. If you can SSH into your server, open files in your favorite terminal editor you’re set! If you are not there yet, no worries—there are plenty of tutorials out there to help you get up to speed, e.g. [here](https://www.pluralsight.com/resources/blog/cloud/ssh-and-scp-howto-tips-tricks).
 
 ---
 
-## 2. Coding the Honeypot in Rust
+# 2. Coding the Honeypot in Rust
 
-### 2.1 Project Setup
+## 2.1 Project Setup
 
 To get started, we’ll create a fresh Rust project for our honeypot:
 
@@ -71,7 +70,7 @@ Next, open `src/main.rs`, and you will find a bare-bones “Hello, world!” fil
 
 ## 2.2 Minimal TCP Server Code
 
-Here’s a simple TCP server that listens on port 2222, for every connection a thread is spawned. Each thread logs incoming data to a file and stdout. 
+Here’s a simple TCP server that listens on port 2222, for every connection a thread is spawned. Each thread logs incoming data to a file and stdout.
 
 ```rust
 use std::io::{Read, Write};
@@ -157,7 +156,7 @@ fn get_epoch_time() -> u64 {
 ### 2.2.1 Handling Connections
 Each incoming connection is handled in a separate thread to avoid blocking the main loop. This way, the honeypot can handle multiple connections simultaneously. The `handle_client` function reads data from the incoming stream, logs it to a file, and prints it to the console. The `get_epoch_time` function generates a timestamp for the log file name.
 
-The TcpListener is bound to `0.0.0.0:2222`, which means it listens on all available network interfaces on port 2222. This allows the honeypot to accept connections from any IP address. The `listener.incoming()` method returns an iterator over incoming connections (infinitely), which we loop over to handle each connection.
+The TcpListener is bound to `0.0.0.0:2222`, which means it listens on all available network interfaces on port 2222. This allows the honeypot to accept connections from any IP address. The `listener.incoming()` method returns an iterator over incoming connections (infinitely), which we loop over to handle each connection. Great job! You’ve set up your first TCP listener.
 
 The TcpStream represents the connection to a client. We use `stream.peer_addr()` to get the IP address of the client. If the address is successfully retrieved, we convert it to a string; otherwise, we use "Unknown". We then create a buffer to read data from the stream and a file to log the incoming data.
 
@@ -174,7 +173,7 @@ This can be extended in many ways, for example, you could add a banner to mimic 
 ## 3.1 Native vs. Cross-Compilation
 Since we want to deploy our honeypot on an Ubuntu AMD64 server, we need to compile our Rust code for the x86_64 architecture. If your development machine has the same architecture, you can compile natively `cargo build --release`. Otherwise, you’ll need to cross-compile for the target architecture. It is one of the benefits of Rust that it is easy to cross-compile.
 
-In my case, I am using an Apple M1 Pro machine, so I need to cross-compile for x86_64. Here’s how you can do it:
+In my case, I am using an Apple M1 Pro MacBook, so I need to cross-compile for x86_64. Here’s how you can do it:
 
 ```bash
 cargo build --release --target x86_64-unknown-linux-gnu
@@ -185,7 +184,7 @@ This creates a binary optimized for the x86_64 architecture, which you can then 
 Why not use the debug build? The debug build includes additional symbols and debugging information, making the binary larger and slower. The release build is optimized for performance and size, making it more suitable for deployment.
 
 ## 3.2 Testing Locally
-Before deploying to Oracle Cloud, you can test your honeypot locally. Build it with `cargo build --release` and un the binary on your development machine and connect to it using `telnet localhost 2222` or `nc localhost 2222`. You should see the connection logs in your terminal and a new log file created in the current directory.
+Before deploying to Oracle Cloud, you can test your honeypot locally. Build it and run it with `cargo run --release` the binary on your development machine and connect to it using `telnet localhost 2222` or `nc localhost 2222`. You should see the connection logs in your terminal and a new log file created in the current directory.
 
 ---
 
@@ -217,7 +216,7 @@ SSH_KEY="$HOME/.ssh/id_ssh_key" # Change this to your private key
 
 # SSH username and server IP
 SERVER_USER="ubuntu"
-SERVER_HOST="xxx.xxx.xxx.xxx" # Change this to your server's IP 
+SERVER_HOST="xxx.xxx.xxx.xxx" # Change this to your server's IP
 
 # Local paths
 LOCAL_BINARY="./target/x86_64-unknown-linux-gnu/release/honeypot"                  # Compiled honeypot binary
@@ -367,7 +366,7 @@ if [ -f "$REMOTE_PATH" ]; then
         echo ">> Stopping $SERVICE_NAME service..."
         sudo systemctl stop "$SERVICE_NAME.service"
     fi
-  
+
     echo "   Copying updated binary to $REMOTE_PATH..."
     sudo cp "$LOCAL_BINARY_PATH" "$REMOTE_PATH"
     sudo chown "$HONEYPOT_USER":"$HONEYPOT_GROUP" "$REMOTE_PATH"
@@ -488,7 +487,7 @@ Deploying a custom Rust honeypot on an always-free Oracle Cloud instance gives y
 You can find the code for this project on my GitHub repository [Rust Honeypot](https://github.com/Rust-Trends/honeypot). Feel free to fork, modify, and experiment with it and if you star it - I will be very happy - I may be tempted to write more guides like this one it has been fun to write.
 
 # Author
-Bob Peters - [Rust Trends](https://rust-trends.com) - [LinkedIn](https://www.linkedin.com/in/bjhpeters/) 
+Bob Peters - [Rust Trends](https://rust-trends.com) - [LinkedIn](https://www.linkedin.com/in/bjhpeters/)
 
 # Further Reading
 
